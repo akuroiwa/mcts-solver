@@ -80,3 +80,30 @@ class AntLionMcts(mcts):
                 return newNode
 
         raise Exception("Should never reach here")
+
+    def search(self, initialState, needDetails=False):
+        self.root = AntLionTreeNode(initialState, None)
+
+        if self.limitType == 'time':
+            timeLimit = time.time() + self.timeLimit / 1000
+            while time.time() < timeLimit:
+                self.executeRound()
+        else:
+            for i in range(self.searchLimit):
+                self.executeRound()
+
+        bestChild = self.getBestChild(self.root, 0)
+        action=(action for action, node in self.root.children.items() if node is bestChild).__next__()
+        if needDetails:
+            return {"action": action, "expectedReward": bestChild.totalReward / bestChild.numVisits}
+        else:
+            return action
+
+    def executeRound(self):
+        """
+            execute a selection-expansion-simulation-backpropagation round
+        """
+        node = self.selectNode(self.root)
+        # reward = self.rollout(node.state)
+        reward = self.mctsSolver(node)
+        self.backpropogate(node, reward)

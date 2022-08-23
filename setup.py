@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='mcts_solver',
-    version='0.0.1',
+    version='0.0.2',
     url='https://github.com/akuroiwa/mcts-solver',
     # # PyPI url
     # download_url='',
