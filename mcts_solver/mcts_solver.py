@@ -13,7 +13,7 @@ class AntLionMcts(mcts):
         self.dl = False
         self.regression = False
 
-    def dl_method(self, bestChild):
+    def dl_method(self, state):
         '''Rewards output by deep learning that you can override.
         '''
         pass
@@ -36,10 +36,9 @@ class AntLionMcts(mcts):
         if bestChild.value != float("-inf") and bestChild.value != float("inf"):
             if bestChild.numVisits == 0:
                 if self.dl:
-                    reward = self.dl_method(bestChild)
+                    reward = self.dl_method(bestChild.state)
                 else:
                     reward = bestChild.state.getCurrentPlayer() * -self.rollout(bestChild.state)
-                reward = bestChild.state.getCurrentPlayer() * -self.rollout(bestChild.state)
                 return reward
             else:
                 reward = -self.mctsSolver(bestChild)
