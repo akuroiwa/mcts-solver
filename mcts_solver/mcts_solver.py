@@ -1,4 +1,5 @@
 from mcts import mcts, treeNode
+import multiprocessing
 
 class AntLionTreeNode(treeNode):
 
@@ -22,6 +23,7 @@ class AntLionMcts(mcts):
         '''This is based on pseudocode from the following paper:
         `Winands, Mark & Björnsson, Yngvi & Saito, Jahn-Takeshi. (2008). Monte-Carlo Tree Search Solver. 25-36. 10.1007/978-3-540-87608-3_3.
         <https://www.researchgate.net/publication/220962507_Monte-Carlo_Tree_Search_Solver>`__
+        Parallel processing is possible thanks to OpenAI's ChatGPT advice.
         '''
         if node.isTerminal:
             if  node.state.getReward() == 1:
@@ -38,10 +40,23 @@ class AntLionMcts(mcts):
                 if self.dl:
                     reward = self.dl_method(bestChild.state)
                 else:
-                    reward = bestChild.state.getCurrentPlayer() * -self.rollout(bestChild.state)
+                    # reward = bestChild.state.getCurrentPlayer() * -self.rollout(bestChild.state)
+                    with multiprocessing.Pool() as pool:
+                        num_processes = multiprocessing.cpu_count()
+                        multiple_results = [pool.apply_async(self.rollout, args=(bestChild.state,)) for i in range(num_processes)]
+                        pool.close()
+                        pool.join()
+                        results = [res for res in multiple_results if res.ready() and res.successful()]
+                        if results:
+                            reward = bestChild.state.getCurrentPlayer() * -max([res.get() for res in results])
+                        else:
+                            reward = 0
                 return reward
             else:
-                reward = -self.mctsSolver(bestChild)
+                with multiprocessing.Pool() as pool:
+                    m = pool.apply_async(-self.mctsSolver, args=(bestChild,))
+                    reward = m.get()
+                # reward = -self.mctsSolver(bestChild)
         else:
             reward = bestChild.value
 
