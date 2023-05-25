@@ -1,5 +1,6 @@
 from mcts import mcts, treeNode
 import multiprocessing
+from multiprocessing import Lock
 
 class AntLionTreeNode(treeNode):
 
@@ -13,6 +14,7 @@ class AntLionMcts(mcts):
         super().__init__(timeLimit, iterationLimit)
         self.dl = False
         self.regression = False
+        self.lock = Lock()
 
     def dl_method(self, state):
         '''Rewards output by deep learning that you can override.
@@ -41,6 +43,7 @@ class AntLionMcts(mcts):
                     reward = self.dl_method(bestChild.state)
                 else:
                     # reward = bestChild.state.getCurrentPlayer() * -self.rollout(bestChild.state)
+
                     with multiprocessing.Pool() as pool:
                         num_processes = multiprocessing.cpu_count()
                         multiple_results = [pool.apply_async(self.rollout, args=(bestChild.state,)) for i in range(num_processes)]
@@ -76,11 +79,17 @@ class AntLionMcts(mcts):
         return reward
 
     def selectNode_num(self, node, explorationConstant):
+        '''Parallel processing is possible thanks to OpenAI's ChatGPT advice.
+        '''
         while not node.isTerminal:
             if node.isFullyExpanded:
-                node = self.getBestChild(node, explorationConstant)
+                with self.lock:
+                    node = self.getBestChild(node, explorationConstant)
             else:
-                return self.expand(node)
+                # return self.expand(node)
+
+                with self.lock:
+                    return self.expand(node)
         return node
 
     def expand(self, node):
