@@ -44,21 +44,28 @@ class AntLionMcts(mcts):
                 else:
                     # reward = bestChild.state.getCurrentPlayer() * -self.rollout(bestChild.state)
 
-                    with multiprocessing.Pool() as pool:
-                        num_processes = multiprocessing.cpu_count()
-                        multiple_results = [pool.apply_async(self.rollout, args=(bestChild.state,)) for i in range(num_processes)]
-                        pool.close()
-                        pool.join()
-                        results = [res for res in multiple_results if res.ready() and res.successful()]
-                        if results:
-                            reward = bestChild.state.getCurrentPlayer() * -max([res.get() for res in results])
-                        else:
-                            reward = 0
+                    with self.lock:
+                        reward = bestChild.state.getCurrentPlayer() * -self.rollout(bestChild.state)
+
+                    # with multiprocessing.Pool() as pool:
+                    #     num_processes = multiprocessing.cpu_count()
+                    #     multiple_results = [pool.apply_async(self.rollout, args=(bestChild.state,)) for i in range(num_processes)]
+                    #     pool.close()
+                    #     pool.join()
+                    #     results = [res for res in multiple_results if res.ready() and res.successful()]
+                    #     if results:
+                    #         reward = bestChild.state.getCurrentPlayer() * max([-res.get() for res in results])
+                    #     else:
+                    #         reward = 0
                 return reward
             else:
-                with multiprocessing.Pool() as pool:
-                    m = pool.apply_async(-self.mctsSolver, args=(bestChild,))
-                    reward = m.get()
+                # with multiprocessing.Pool() as pool:
+                #     m = pool.apply_async(self.mctsSolver, args=(bestChild,))
+                #     reward = -m.get()
+
+                with self.lock:
+                    reward = -self.mctsSolver(bestChild)
+
                 # reward = -self.mctsSolver(bestChild)
         else:
             reward = bestChild.value
