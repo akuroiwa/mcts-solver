@@ -27,76 +27,81 @@ class AntLionMcts(mcts):
         <https://www.researchgate.net/publication/220962507_Monte-Carlo_Tree_Search_Solver>`__
         Parallel processing is possible thanks to OpenAI's ChatGPT advice.
         '''
-        if node.isTerminal:
-            if  node.state.getReward() == 1:
-                node.value = float("inf")
-            elif node.state.getReward() == -1:
-                node.value = float("-inf")
-            else:
-                return 0
-
-        bestChild = node
-
-        if bestChild.value != float("-inf") and bestChild.value != float("inf"):
-            if bestChild.numVisits == 0:
-                if self.dl:
-                    reward = self.dl_method(bestChild.state)
+        with self.lock:
+            if node.isTerminal:
+                if  node.state.getReward() == 1:
+                    node.value = float("inf")
+                elif node.state.getReward() == -1:
+                    node.value = float("-inf")
                 else:
-                    # reward = bestChild.state.getCurrentPlayer() * -self.rollout(bestChild.state)
+                    return 0
 
-                    with self.lock:
+            bestChild = node
+
+            if bestChild.value != float("-inf") and bestChild.value != float("inf"):
+                if bestChild.numVisits == 0:
+                    if self.dl:
+                        reward = self.dl_method(bestChild.state)
+                    else:
                         reward = bestChild.state.getCurrentPlayer() * -self.rollout(bestChild.state)
 
+                        # with self.lock:
+                        #     reward = bestChild.state.getCurrentPlayer() * -self.rollout(bestChild.state)
+
+                        # with multiprocessing.Pool() as pool:
+                        #     num_processes = multiprocessing.cpu_count()
+                        #     multiple_results = [pool.apply_async(self.rollout, args=(bestChild.state,)) for i in range(num_processes)]
+                        #     pool.close()
+                        #     pool.join()
+                        #     results = [res for res in multiple_results if res.ready() and res.successful()]
+                        #     if results:
+                        #         # reward = bestChild.state.getCurrentPlayer() * max([-res.get() for res in results])
+                        #         reward = bestChild.state.getCurrentPlayer() * min([-res.get() for res in results])
+                        #     else:
+                        #         reward = 0
+                    return reward
+                else:
                     # with multiprocessing.Pool() as pool:
-                    #     num_processes = multiprocessing.cpu_count()
-                    #     multiple_results = [pool.apply_async(self.rollout, args=(bestChild.state,)) for i in range(num_processes)]
-                    #     pool.close()
-                    #     pool.join()
-                    #     results = [res for res in multiple_results if res.ready() and res.successful()]
-                    #     if results:
-                    #         reward = bestChild.state.getCurrentPlayer() * max([-res.get() for res in results])
-                    #     else:
-                    #         reward = 0
+                    #     m = pool.apply_async(self.mctsSolver, args=(bestChild,))
+                    #     reward = -m.get()
+
+                    # with self.lock:
+                    #     reward = -self.mctsSolver(bestChild)
+
+                    reward = -self.mctsSolver(bestChild)
+            else:
+                reward = bestChild.value
+
+            if reward == float("inf"):
+                node.parent.value = float("-inf")
                 return reward
             else:
-                # with multiprocessing.Pool() as pool:
-                #     m = pool.apply_async(self.mctsSolver, args=(bestChild,))
-                #     reward = -m.get()
-
-                with self.lock:
-                    reward = -self.mctsSolver(bestChild)
-
-                # reward = -self.mctsSolver(bestChild)
-        else:
-            reward = bestChild.value
-
-        if reward == float("inf"):
-            node.parent.value = float("-inf")
-            return reward
-        else:
-            if reward == float("-inf"):
-                for child in node.parent.children.values():
-                    try:
-                        if child.value != reward:
-                            reward = -1
+                if reward == float("-inf"):
+                    for child in node.parent.children.values():
+                        try:
+                            if child.value != reward:
+                                reward = -1
+                                return reward
+                        except:
+                            node.parent.value = float("inf")
                             return reward
-                    except:
-                        node.parent.value = float("inf")
-                        return reward
-        return reward
+            return reward
 
     def selectNode_num(self, node, explorationConstant):
-        '''Parallel processing is possible thanks to OpenAI's ChatGPT advice.
+        '''Parallel processing is possible thanks to Google Bard and OpenAI's ChatGPT advice.
         '''
-        while not node.isTerminal:
-            if node.isFullyExpanded:
-                with self.lock:
+        with self.lock:
+            while not node.isTerminal:
+                if node.isFullyExpanded:
                     node = self.getBestChild(node, explorationConstant)
-            else:
-                # return self.expand(node)
 
-                with self.lock:
+                    # with self.lock:
+                    #     node = self.getBestChild(node, explorationConstant)
+                else:
                     return self.expand(node)
+
+                    # with self.lock:
+                    #     return self.expand(node)
         return node
 
     def expand(self, node):
